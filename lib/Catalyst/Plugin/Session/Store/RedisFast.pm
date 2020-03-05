@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use utf8;
 
-use MRO::Compat;
 use MIME::Base64 qw/encode_base64 decode_base64/;
 use Redis::Fast;
 use CBOR::XS qw/encode_cbor decode_cbor/;
@@ -19,22 +18,62 @@ our $VERSION = '0.01';
 
 __PACKAGE__->mk_classdata(qw/_session_redis_storage/);
 
-
 sub get_session_data {
     my ($c, $key) = @_;
 
     if (my ($sid) = $key =~ /^expires:(.*)/) {
         #Return TTL of key
-        my $ttl = $c->_redis_op(sub {$c->_session_redis_storage->ttl($key)});
-        my $exp_time = time + $ttl;
+        my $ttl = $c->_redis_op('ttl', "session:$sid");
+        my $exp_time = time() + $ttl;
         $c->log->debug("Getting expires key for '$sid'. TTl: $ttl. Expire time: $exp_time");
         return $exp_time;
     }
 
     $c->log->debug("Getting '$key'");
-    my $data = $c->_redis_op(sub {$c->_session_redis_storage->get($key)}) or return;
+    my $data = $c->_redis_op('get', $key) or return;
 
     return decode_cbor(decode_base64($data));
+}
+
+sub store_session_data {
+    my ($c, $key, $value) = @_;
+
+    if (my ($sid) = $key =~ /^expires:(.*)/) {
+        # Store expires for key
+        my $ttl = $value - time();
+        $c->log->debug("Set expires to sid '$sid'. TTL: $ttl");
+
+        if ($c->_redis_op('exists', "session:$sid")) {
+            $c->_redis_op('expire', "session:$sid", $ttl);
+        }
+        else {
+            $c->_redis_op('set', "session:$sid", '', 'EX', $ttl);
+        }
+        return 1;
+    }
+
+    $c->log->debug("Store session data to '$key'");
+    my $ttl = $c->_redis_op('ttl', $key);
+    # If key not exists
+    $ttl = $c->session_expires - time() if $ttl < 0;
+
+    # Update key with ttl
+    if ($ttl > 0) {
+        $c->_redis_op('set', $key, encode_base64(encode_cbor($value)), 'EX', $ttl);
+    }
+
+    return 1;
+}
+
+sub delete_session_data {
+    my ($c, $key) = @_;
+
+    $c->log->debug("Deleting key: '$key'");
+    return $c->_redis_op('del', $key);
+}
+
+sub delete_expired_sessions {
+    # Null op, Redis handles this for us!
 }
 
 sub setup_session {
@@ -60,13 +99,12 @@ sub _verify_redis_connect {
     }
 }
 
-
 sub _redis_op {
     #Execute Redis operation
-    my ($c, $op) = @_;
+    my ($c, $op, @args) = @_;
     my $retry_count = 10;
     while (--$retry_count > 0) {
-        my $res = eval {&$op};
+        my $res = eval {$c->_session_redis_storage->$op(@args)};
         if ($@) {
             $c->_verify_redis_connect;
         }
