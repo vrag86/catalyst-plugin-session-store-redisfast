@@ -1,0 +1,8 @@
+.*
+*.tar.gz
+Makefile
+blib/
+lib/Catalyst/Plugin/Session/Store/.*
+pm_to_blib
+t/.*
+t/lib/.*

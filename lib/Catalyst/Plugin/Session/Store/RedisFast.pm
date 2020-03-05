@@ -172,5 +172,38 @@ version 0.01
 
     C<Catalyst::Plugin::Session::Store::RedisFast> - is a session storage plugin for Catalyst that uses the Redis::Fast as Redis storage module and CBOR::XS as serializing/deserealizing prel data to string
 
+=head2 CONFIGURATIN
+
+=head3 redis_config
+
+Options save as L<Redis::Fast>
+
+=head3 expires
+
+Default ttl time to session keys
+
+=head1 DEPENDENCE
+
+L<Redis::Fast>, L<CBOR::XS>, L<MIME::Base64>
+
+=head1 AUTHORS
+
+=over 4
+
+=item *
+
+Pavel Andryushin <vrag867@gmail.com>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2020 by Pavel Andryushin.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+
 =cut
 
