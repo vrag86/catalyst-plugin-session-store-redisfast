@@ -14,7 +14,7 @@ use base qw/
     Class::Data::Inheritable
     /;
 
-our $VERSION = '0.01';
+our $VERSION = '0.03';
 
 __PACKAGE__->mk_classdata(qw/_session_redis_storage/);
 
@@ -44,7 +44,7 @@ sub store_session_data {
         $c->log->debug("Set expires to sid '$sid'. TTL: $ttl");
 
         if ($c->_redis_op('exists', "session:$sid")) {
-            $c->_redis_op('expire', "session:$sid", $ttl);
+            $c->set_session_ttl("session:$sid", $ttl);
         }
         else {
             $c->_redis_op('set', "session:$sid", '', 'EX', $ttl);
@@ -63,6 +63,12 @@ sub store_session_data {
     }
 
     return 1;
+}
+
+sub set_session_ttl {
+    my ($c, $key, $ttl) = @_;
+    $c->_redis_op('expire', $key, $ttl);
+
 }
 
 sub delete_session_data {
@@ -129,7 +135,7 @@ Catalyst::Plugin::Session::Store::RedisFast - Redis Session store for Catalyst f
 
 =head1 VERSION
 
-version 0.01
+version 0.03
 
 =head1 SYNOPSYS
 
@@ -162,6 +168,7 @@ version 0.01
             sentinels_cnx_timeout       => 0.1,
             sentinels_read_timeout      => 1,
             sentinels_write_timeout     => 1,
+            redis_db                    => 0,
         },
     };
 
@@ -170,7 +177,7 @@ version 0.01
 
 =head1 DESCRIPTION
 
-    C<Catalyst::Plugin::Session::Store::RedisFast> - is a session storage plugin for Catalyst that uses the Redis::Fast as Redis storage module and CBOR::XS as serializing/deserealizing prel data to string
+C<Catalyst::Plugin::Session::Store::RedisFast> - is a session storage plugin for Catalyst that uses the Redis::Fast as Redis storage module and CBOR::XS as serializing/deserealizing prel data to string
 
 =head2 CONFIGURATIN
 
